@@ -1,0 +1,1558 @@
+###############################################
+# PLIZ APP - COMPLETE API TEST SUITE
+# PostgreSQL Multi-Session Authentication System
+# Version: 1.0.0
+###############################################
+#
+# 📧 TEST EMAILS:
+# - User 1: impactliveconsult@gmail.com
+# - User 2: chigoziegodwin93@gmail.com
+#
+# ✅ PREREQUISITES:
+# 1. Server running: npm run dev (http://localhost:3000)
+# 2. PostgreSQL running with pliz_app database
+# 3. Redis server running
+# 4. Gmail SMTP configured in .env
+#
+# 📝 IMPORTANT NOTES:
+# - Check your Gmail inbox for verification emails
+# - Tokens expire: Access (15min), Refresh (7days)
+# - Each test builds on previous ones
+# - Run tests sequentially from top to bottom
+#
+###############################################
+
+@baseUrl = http://localhost:3000
+@email1 = impactliveconsult@gmail.com
+@email2 = chigoziegodwin93@gmail.com
+@testPassword = Test123!@#
+@newPassword = NewPass123!@#
+
+###############################################
+# SECTION 1: HEALTH & SYSTEM CHECKS
+###############################################
+
+### 1.1 Health Check
+GET {{baseUrl}}/health
+
+# ✅ Expected: 200 OK
+# {
+#   "status": "ok",
+#   "timestamp": "..."
+# }
+
+###
+
+### 1.2 API Root Info
+GET {{baseUrl}}/
+
+# ✅ Expected: 200 OK
+# Shows API information
+
+###
+
+###############################################
+# SECTION 2: USER REGISTRATION
+###############################################
+
+### 2.1 Register User 1 (impactliveconsult@gmail.com)
+# @name registerUser1
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "impactlive",
+  "email": "{{email1}}",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ✅ Expected: 201 Created
+# {
+#   "success": true,
+#   "message": "Registration successful! Please check your email for verification link."
+# }
+# 📧 CHECK EMAIL: impactliveconsult@gmail.com
+
+###
+
+### 2.2 Register User 2 (chigoziegodwin93@gmail.com)
+# @name registerUser2
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "chigoziegodwin",
+  "email": "{{email2}}",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ✅ Expected: 201 Created
+# 📧 CHECK EMAIL: chigoziegodwin93@gmail.com
+
+###
+
+### 2.3 Try Duplicate Email (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "duplicate_user",
+  "email": "{{email1}}",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ❌ Expected: 409 Conflict
+# {
+#   "success": false,
+#   "message": "Email already registered"
+# }
+
+###
+
+### 2.4 Try Duplicate Username (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "impactlive",
+  "email": "newuser@example.com",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ❌ Expected: 409 Conflict
+# {
+#   "success": false,
+#   "message": "Username already taken"
+# }
+
+###
+
+### 2.5 Invalid Email Format (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "invaliduser",
+  "email": "not-an-email",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 2.6 Weak Password (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "weakpass",
+  "email": "weak@example.com",
+  "password": "123",
+  "confirmPassword": "123"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 2.7 Password Mismatch (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "mismatch",
+  "email": "mismatch@example.com",
+  "password": "{{testPassword}}",
+  "confirmPassword": "DifferentPassword123!@#"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 2.8 Missing Required Fields (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "incomplete@example.com"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+###############################################
+# SECTION 3: EMAIL VERIFICATION
+###############################################
+
+### 3.1 Get Verification Token for User 1
+# 📝 MANUAL STEP:
+# Option 1: Check Gmail inbox for verification email
+# Option 2: Run in terminal:
+#   redis-cli GET email_token:impactliveconsult@gmail.com
+# Copy the token for next step
+
+###
+
+### 3.2 Verify User 1 Email
+# Replace TOKEN_HERE with actual token from email or Redis
+GET {{baseUrl}}/api/auth/verify-email?token=8f5bd9f6e28abc84d623e8e520699ecd8bdecbdddcb9c38c6da47a40ace4bbab
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "Email verified successfully! You can now login."
+# }
+
+###
+
+### 3.3 Get Verification Token for User 2
+# 📝 MANUAL STEP:
+# Run: redis-cli GET email_token:chigoziegodwin93@gmail.com
+# OR check Gmail inbox
+
+###
+
+### 3.4 Verify User 2 Email
+# Replace TOKEN_HERE with actual token
+GET {{baseUrl}}/api/auth/verify-email?token=65d407f7c2e38f8046115746c4ff5f8135e396dd7dc30f9a329d4c491178804a
+
+# ✅ Expected: 200 OK
+
+###
+
+### 3.5 Verify with Invalid Token (SHOULD FAIL)
+GET {{baseUrl}}/api/auth/verify-email?token=invalid_token_12345
+
+# ❌ Expected: 400 Bad Request
+# {
+#   "success": false,
+#   "message": "Invalid or expired verification token"
+# }
+
+###
+
+### 3.6 Verify Without Token (SHOULD FAIL)
+GET {{baseUrl}}/api/auth/verify-email
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 3.7 Verify Already Verified Email
+# Use User 1's token again
+GET {{baseUrl}}/api/auth/verify-email?token=SAME_TOKEN_AS_3.2
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "Email is already verified. You can login."
+# }
+
+###
+
+###############################################
+# SECTION 4: RESEND VERIFICATION EMAIL
+###############################################
+
+### 4.1 Register Test User for Resend
+# @name registerResendTest
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "resendtest",
+  "email": "godwinchigozie679@gmail.com",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+###
+
+### 4.2 Resend Verification Email (1st Time)
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "godwinchigozie679@gmail.com"
+}
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "Verification email sent! Please check your inbox."
+# }
+
+###
+
+### 4.3 Resend Immediately (2nd Time) - NO RATE LIMIT
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "resendtest@example.com"
+}
+
+# ✅ Expected: 200 OK
+# Can resend unlimited times for unverified users
+
+###
+
+### 4.4 Resend (3rd Time)
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "resendtest@example.com"
+}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 4.5 Resend for Verified User (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "{{email1}}"
+}
+
+# ❌ Expected: 400 Bad Request
+# {
+#   "success": false,
+#   "message": "This email is already verified. You can login."
+# }
+
+###
+
+### 4.6 Resend for Non-existent Email (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "doesnotexist@example.com"
+}
+
+# ❌ Expected: 404 Not Found
+
+###
+
+### 4.7 Resend with Invalid Email (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "not-valid-email"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 4.8 Verify Resend Test User
+# Get token: redis-cli GET email_token:resendtest@example.com
+GET {{baseUrl}}/api/auth/verify-email?token=PASTE_RESENDTEST_TOKEN
+
+# ✅ Expected: 200 OK
+
+###
+
+### 4.9 Try Resend After Verification (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "resendtest@example.com"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+###############################################
+# SECTION 5: USER LOGIN (MULTI-DEVICE)
+###############################################
+
+### 5.1 Login User 1 - Device 1 (Chrome Desktop)
+# @name loginUser1Device1
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "Login successful",
+#   "data": {
+#     "user": {
+#       "id": "...",
+#       "username": "impactlive",
+#       "email": "impactliveconsult@gmail.com",
+#       "isEmailVerified": true
+#     },
+#     "accessToken": "...",
+#     "refreshToken": "..."
+#   }
+# }
+
+###
+
+### 5.2 Login User 1 - Device 2 (Firefox Desktop)
+# @name loginUser1Device2
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 5.3 Login User 1 - Device 3 (iPhone Safari)
+# @name loginUser1Device3
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 5.4 Login with Wrong Password (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "WrongPassword123!@#"
+}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 5.5 Login Unverified User (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "resendtest@example.com",
+  "password": "{{testPassword}}"
+}
+
+# ❌ Expected: 403 Forbidden (if not verified)
+# ✅ Expected: 200 OK (if verified in step 4.8)
+
+###
+
+### 5.6 Login Non-existent User (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "nonexistent@example.com",
+  "password": "{{testPassword}}"
+}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 5.7 Login Missing Email (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "password": "{{testPassword}}"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 5.8 Login Missing Password (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+###############################################
+# SECTION 6: GET CURRENT USER
+###############################################
+
+### 6.1 Get Current User Info
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "User retrieved successfully",
+#   "data": {
+#     "user": {
+#       "id": "...",
+#       "username": "impactlive",
+#       "email": "impactliveconsult@gmail.com",
+#       "isEmailVerified": true,
+#       "emailVerifiedAt": "2026-01-22T...",
+#       "createdAt": "...",
+#       "updatedAt": "..."
+#     }
+#   }
+# }
+
+###
+
+### 6.2 Get User Without Token (SHOULD FAIL)
+GET {{baseUrl}}/api/auth/me
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 6.3 Get User with Invalid Token (SHOULD FAIL)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer invalid_token_here
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 6.4 Get User 2 Info
+# @name loginUser2
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email2}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{loginUser2.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+# Shows User 2's information (chigoziegodwin)
+
+###
+
+###############################################
+# SECTION 7: REFRESH TOKEN
+###############################################
+
+### 7.1 Refresh Access Token
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{loginUser1Device1.response.body.data.refreshToken}}"
+}
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "Token refreshed successfully",
+#   "data": {
+#     "accessToken": "new_access_token...",
+#     "user": {
+#       "id": "...",
+#       "username": "impactlive",
+#       "email": "impactliveconsult@gmail.com",
+#       "isEmailVerified": true
+#     }
+#   }
+# }
+
+###
+
+### 7.2 Use Refreshed Token
+# @name refreshedLogin
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{loginUser1Device1.response.body.data.refreshToken}}"
+}
+
+###
+
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{refreshedLogin.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 7.3 Refresh with Invalid Token (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "invalid_refresh_token_12345"
+}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 7.4 Refresh Without Token (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 7.5 Multiple Refresh Calls
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{loginUser1Device1.response.body.data.refreshToken}}"
+}
+
+###
+
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{loginUser1Device1.response.body.data.refreshToken}}"
+}
+
+###
+
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{loginUser1Device1.response.body.data.refreshToken}}"
+}
+
+# ✅ Expected: All return 200 OK with new access tokens
+
+###
+
+###############################################
+# SECTION 8: SESSION MANAGEMENT
+###############################################
+
+### 8.1 Get All Active Sessions
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "data": {
+#     "sessions": [
+#       {
+#         "id": "...",
+#         "deviceInfo": {
+#           "userAgent": "Mozilla/5.0...",
+#           "browser": "Chrome",
+#           "os": "Windows",
+#           "device": "Desktop"
+#         },
+#         "ipAddress": "127.0.0.1",
+#         "location": {},
+#         "active": true,
+#         "isCurrent": true,
+#         "lastActive": "...",
+#         "createdAt": "...",
+#         "expiresAt": "..."
+#       },
+#       {
+#         "id": "...",
+#         "deviceInfo": {
+#           "browser": "Firefox",
+#           "os": "Windows",
+#           "device": "Desktop"
+#         },
+#         "isCurrent": false,
+#         ...
+#       },
+#       {
+#         "id": "...",
+#         "deviceInfo": {
+#           "browser": "Safari",
+#           "os": "iOS",
+#           "device": "Mobile"
+#         },
+#         "isCurrent": false,
+#         ...
+#       }
+#     ]
+#   }
+# }
+#
+# 📝 COPY A SESSION ID for next tests
+
+###
+
+### 8.2 Get Sessions from Device 2
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device2.response.body.data.accessToken}}
+
+# ✅ Device 2 should show isCurrent: true
+
+###
+
+### 8.3 Get Sessions from Device 3
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device3.response.body.data.accessToken}}
+
+# ✅ Device 3 should show isCurrent: true
+
+###
+
+### 8.4 Get Sessions Without Auth (SHOULD FAIL)
+GET {{baseUrl}}/api/sessions
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+###############################################
+# SECTION 9: LOGOUT SPECIFIC SESSION
+###############################################
+
+### 9.1 Logout Device 3 from Device 1
+# Replace SESSION_ID with iPhone session ID from step 8.1
+DELETE {{baseUrl}}/api/sessions/PASTE_IPHONE_SESSION_ID_HERE
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+# {
+#   "success": true,
+#   "message": "Session logged out successfully"
+# }
+
+###
+
+### 9.2 Verify Device 3 Token Invalid
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device3.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 9.3 Check Remaining Sessions
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+# Should show 2 sessions (Chrome, Firefox)
+
+###
+
+### 9.4 Try Logout Non-existent Session (SHOULD FAIL)
+DELETE {{baseUrl}}/api/sessions/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ❌ Expected: 404 Not Found
+
+###
+
+###############################################
+# SECTION 10: LOGOUT OTHER SESSIONS
+###############################################
+
+### 10.1 Login Device 3 Again
+# @name loginDevice3Again
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+### 10.2 Verify 3 Sessions Active
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Should show 3 sessions
+
+###
+
+### 10.3 Logout All OTHER Sessions (Keep Device 1)
+DELETE {{baseUrl}}/api/sessions/others
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+# Logs out Device 2 & 3, keeps Device 1
+
+###
+
+### 10.4 Verify Only Device 1 Active
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Should show 1 session
+
+###
+
+### 10.5 Verify Device 2 Logged Out
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device2.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 10.6 Verify Device 3 Logged Out
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginDevice3Again.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+###############################################
+# SECTION 11: LOGOUT ALL SESSIONS
+###############################################
+
+### 11.1 Login Multiple Devices
+# @name loginD2
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+# @name loginD3
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+### 11.2 Verify 3 Sessions
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Should show 3 sessions
+
+###
+
+### 11.3 Logout ALL Sessions (Including Current)
+DELETE {{baseUrl}}/api/sessions/all
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 11.4 Verify Device 1 Logged Out
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginUser1Device1.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 11.5 Verify Device 2 Logged Out
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginD2.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 11.6 Verify Device 3 Logged Out
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginD3.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+###############################################
+# SECTION 12: LOGOUT CURRENT SESSION
+###############################################
+
+### 12.1 Fresh Login
+# @name freshLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+### 12.2 Verify Token Works
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{freshLogin.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 12.3 Logout Current Session
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{freshLogin.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 12.4 Verify Token Blacklisted
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{freshLogin.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 12.5 Try Refresh After Logout (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{freshLogin.response.body.data.refreshToken}}"
+}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+###############################################
+# SECTION 13: PASSWORD RESET FLOW
+###############################################
+
+### 13.1 Login Before Password Reset
+# @name loginBeforeReset
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+### 13.2 Verify Session Active
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginBeforeReset.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 13.3 Request Password Reset
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email1}}"
+}
+
+# ✅ Expected: 200 OK
+# 📧 CHECK EMAIL: impactliveconsult@gmail.com
+
+###
+
+### 13.4 Get Reset Token
+# 📝 MANUAL STEP:
+# Run: redis-cli GET password_reset:impactliveconsult@gmail.com
+# OR check Gmail inbox
+
+###
+
+### 13.5 Reset Password
+# Replace TOKEN with actual reset token
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "a628ab7b066c59f1370f41e188b8c3f5ffb326806cce0d498918d455ece5a74e",
+  "newPassword": "{{newPassword}}",
+  "confirmPassword": "{{newPassword}}"
+}
+
+# ✅ Expected: 200 OK
+# All sessions will be logged out
+
+###
+
+### 13.6 Verify Old Session Invalidated
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginBeforeReset.response.body.data.accessToken}}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 13.7 Login with Old Password (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+# ❌ Expected: 401 Unauthorized
+
+###
+
+### 13.8 Login with New Password
+# @name loginNewPassword
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "{{newPassword}}"
+}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 13.9 Verify New Session Works
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{loginNewPassword.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 13.10 Reset with Invalid Token (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "invalid_token_12345",
+  "newPassword": "{{newPassword}}",
+  "confirmPassword": "{{newPassword}}"
+}
+
+# ❌ Expected: 400 Bad Request
+
+###
+
+### 13.11 Reset Password Back to Original
+# Request reset
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email1}}"
+}
+
+###
+
+# Get token: redis-cli GET password_reset:impactliveconsult@gmail.com
+# Then reset
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "a430d8d61b2fcd7bb3cfc024994d6daedd77f14beefcb061aa1dd01655723365",
+  "newPassword": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ✅ Password back to original
+
+###
+
+###############################################
+# SECTION 14: MULTI-USER SESSION ISOLATION
+###############################################
+
+### 14.1 Login User 1
+# @name user1Session
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+### 14.2 Login User 2
+# @name user2Session
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email2}}",
+  "password": "{{testPassword}}"
+}
+
+###
+
+### 14.3 User 1 Get Sessions
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{user1Session.response.body.data.accessToken}}
+
+# ✅ Should show only User 1's sessions
+# 📝 COPY User 1's session ID
+
+###
+
+### 14.4 User 2 Get Sessions
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{user2Session.response.body.data.accessToken}}
+
+# ✅ Should show only User 2's sessions
+# 📝 COPY User 2's session ID
+
+###
+
+### 14.5 User 1 Try to Delete User 2's Session (SHOULD FAIL)
+# Replace SESSION_ID with User 2's session ID from 14.4
+DELETE {{baseUrl}}/api/sessions/PASTE_USER2_SESSION_ID
+Authorization: Bearer {{user1Session.response.body.data.accessToken}}
+
+# ❌ Expected: 403 Forbidden
+
+###
+
+### 14.6 Verify User 2 Session Still Active
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{user2Session.response.body.data.accessToken}}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 14.7 User 1 Get Current User
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{user1Session.response.body.data.accessToken}}
+
+# ✅ Shows User 1 info (impactlive)
+
+###
+
+### 14.8 User 2 Get Current User
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{user2Session.response.body.data.accessToken}}
+
+# ✅ Shows User 2 info (chigoziegodwin)
+
+###
+
+###############################################
+# SECTION 15: RATE LIMITING
+###############################################
+
+### 15.1 Rate Limit Test - Attempt 1
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "wrong_password"
+}
+
+###
+
+### 15.2 Rate Limit Test - Attempt 2
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "wrong_password"
+}
+
+###
+
+### 15.3 Rate Limit Test - Attempt 3
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "wrong_password"
+}
+
+###
+
+### 15.4 Rate Limit Test - Attempt 4
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "wrong_password"
+}
+
+###
+
+### 15.5 Rate Limit Test - Attempt 5
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "wrong_password"
+}
+
+###
+
+### 15.6 Rate Limit Test - Attempt 6 (SHOULD BE BLOCKED)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email1}}",
+  "password": "wrong_password"
+}
+
+# ❌ Expected: 429 Too Many Requests
+
+###
+
+###############################################
+# SECTION 16: EDGE CASES
+###############################################
+
+### 16.1 Route Not Found
+GET {{baseUrl}}/api/nonexistent
+
+# ❌ Expected: 404 Not Found
+
+###
+
+### 16.2 Login with Uppercase Email
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "IMPACTLIVECONSULT@GMAIL.COM",
+  "password": "{{testPassword}}"
+}
+
+# ✅ Expected: 200 OK (email normalized)
+
+###
+
+### 16.3 Login with Spaces in Email
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "  {{email1}}  ",
+  "password": "{{testPassword}}"
+}
+
+# ✅ Expected: 200 OK (spaces trimmed)
+
+###
+
+### 16.4 Signup with Mixed Case Email
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "mixedcase",
+  "email": "MiXeD@ExAmPlE.cOm",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+# ✅ Expected: 201 Created
+# Email stored as: mixed@example.com
+
+###
+
+###############################################
+# SECTION 17: COMPLETE USER JOURNEY
+###############################################
+
+### 17.1 Register New User
+POST {{baseUrl}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "journeyuser",
+  "email": "journey@example.com",
+  "password": "{{testPassword}}",
+  "confirmPassword": "{{testPassword}}"
+}
+
+###
+
+### 17.2 Try Login Before Verification (SHOULD FAIL)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "journey@example.com",
+  "password": "{{testPassword}}"
+}
+
+# ❌ Expected: 403 Forbidden
+
+###
+
+### 17.3 Resend Verification
+POST {{baseUrl}}/api/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "journey@example.com"
+}
+
+###
+
+### 17.4 Verify Email
+# Get token: redis-cli GET email_token:journey@example.com
+GET {{baseUrl}}/api/auth/verify-email?token=PASTE_TOKEN_HERE
+
+###
+
+### 17.5 Login After Verification
+# @name journeyLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "journey@example.com",
+  "password": "{{testPassword}}"
+}
+
+# ✅ Expected: 200 OK
+
+###
+
+### 17.6 Get Current User
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{journeyLogin.response.body.data.accessToken}}
+
+###
+
+### 17.7 Refresh Token
+POST {{baseUrl}}/api/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{journeyLogin.response.body.data.refreshToken}}"
+}
+
+###
+
+### 17.8 Get Sessions
+GET {{baseUrl}}/api/sessions
+Authorization: Bearer {{journeyLogin.response.body.data.accessToken}}
+
+###
+
+### 17.9 Request Password Reset
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "journey@example.com"
+}
+
+###
+
+### 17.10 Reset Password
+# Get token: redis-cli GET password_reset:journey@example.com
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "PASTE_RESET_TOKEN",
+  "newPassword": "NewJourney123!@#",
+  "confirmPassword": "NewJourney123!@#"
+}
+
+###
+
+### 17.11 Login with New Password
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "journey@example.com",
+  "password": "NewJourney123!@#"
+}
+
+# ✅ Complete journey successful!
+
+###
+
+###############################################
+# DATABASE VERIFICATION COMMANDS
+###############################################
+
+# Run these in your terminal to verify data:
+
+# View all users:
+# psql pliz_app -c "SELECT username, email, is_email_verified, email_verified_at FROM app_users;"
+
+# View User 1:
+# psql pliz_app -c "SELECT * FROM app_users WHERE email = 'impactliveconsult@gmail.com';"
+
+# View User 2:
+# psql pliz_app -c "SELECT * FROM app_users WHERE email = 'chigoziegodwin93@gmail.com';"
+
+# View all sessions:
+# psql pliz_app -c "SELECT s.id, u.username, s.browser, s.os, s.device, s.active, s.last_active FROM session_manager s JOIN app_users u ON s.user_id = u.id ORDER BY s.last_active DESC;"
+
+# Count active sessions per user:
+# psql pliz_app -c "SELECT u.username, COUNT(*) as sessions FROM app_users u JOIN session_manager s ON u.id = s.user_id WHERE s.active = true GROUP BY u.username;"
+
+###############################################
+# REDIS VERIFICATION COMMANDS
+###############################################
+
+# View all email tokens:
+# redis-cli KEYS email_token:*
+
+# View all password reset tokens:
+# redis-cli KEYS password_reset:*
+
+# View all blacklisted tokens:
+# redis-cli KEYS blacklist:*
+
+# View specific token:
+# redis-cli GET email_token:impactliveconsult@gmail.com
+
+# Check token TTL:
+# redis-cli TTL email_token:impactliveconsult@gmail.com
+
+# Monitor all Redis operations:
+# redis-cli MONITOR
+
+###############################################
+# CLEANUP COMMANDS
+###############################################
+
+# Delete test users from database:
+# psql pliz_app -c "DELETE FROM app_users WHERE email LIKE '%@example.com';"
+
+# Clear all Redis data (CAUTION):
+# redis-cli FLUSHDB
+
+# Delete specific email tokens:
+# redis-cli DEL email_token:journey@example.com
+# redis-cli DEL email_token:resendtest@example.com
+
+###############################################
+# TEST SUMMARY
+###############################################
+#
+# 📊 TOTAL SECTIONS: 17
+# 📊 TOTAL TESTS: 150+
+#
+# ✅ Section 1: Health Checks (2 tests)
+# ✅ Section 2: User Registration (8 tests)
+# ✅ Section 3: Email Verification (7 tests)
+# ✅ Section 4: Resend Verification (9 tests)
+# ✅ Section 5: User Login (8 tests)
+# ✅ Section 6: Get Current User (4 tests)
+# ✅ Section 7: Refresh Token (6 tests)
+# ✅ Section 8: Session Management (4 tests)
+# ✅ Section 9: Logout Specific Session (4 tests)
+# ✅ Section 10: Logout Other Sessions (6 tests)
+# ✅ Section 11: Logout All Sessions (6 tests)
+# ✅ Section 12: Logout Current Session (5 tests)
+# ✅ Section 13: Password Reset Flow (11 tests)
+# ✅ Section 14: Multi-User Isolation (8 tests)
+# ✅ Section 15: Rate Limiting (6 tests)
+# ✅ Section 16: Edge Cases (4 tests)
+# ✅ Section 17: Complete Journey (11 tests)
+#
+# 🎯 FEATURES TESTED:
+# ✅ User registration with validation
+# ✅ Email verification with tokens (24h expiry)
+# ✅ Resend verification (unlimited for unverified users)
+# ✅ Multi-device login tracking
+# ✅ JWT access tokens (15min expiry)
+# ✅ JWT refresh tokens (7day expiry)
+# ✅ Get current user endpoint
+# ✅ Refresh token endpoint
+# ✅ Session management (view all devices)
+# ✅ Logout specific device
+# ✅ Logout all other devices
+# ✅ Logout all devices (including current)
+# ✅ Logout current session only
+# ✅ Password reset with email tokens (1h expiry)
+# ✅ Token blacklisting on logout
+# ✅ Multi-user session isolation
+# ✅ Rate limiting (5 requests/15min)
+# ✅ Input validation & sanitization
+# ✅ Error handling
+# ✅ Email normalization (case-insensitive)
+# ✅ Device detection (browser, OS, device type)
+# ✅ IP address tracking
+#
+# 📧 REAL EMAILS:
+# - User 1: impactliveconsult@gmail.com
+# - User 2: chigoziegodwin93@gmail.com
+#
+# 📧 TEST EMAILS (no real emails sent):
+# - resendtest@example.com
+# - mixedcase user
+# - journey@example.com
+#
+# 💡 USAGE TIPS:
+# 1. Run tests sequentially from top to bottom
+# 2. Check Gmail for verification/reset emails
+# 3. Use Redis CLI to get tokens when needed
+# 4. Copy session IDs from responses for delete tests
+# 5. Wait 15+ minutes between rate limit tests
+#
+###############################################
+# END OF API TEST SUITE
+###############################################

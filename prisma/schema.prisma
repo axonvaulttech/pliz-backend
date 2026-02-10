@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//Use
+model User {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username         String    @unique @db.VarChar(50)
+  email            String    @unique @db.VarChar(255)
+  passwordHash     String    @map("password_hash") @db.Text
+  isEmailVerified  Boolean   @default(false) @map("is_email_verified")
+  emailVerifiedAt  DateTime? @map("email_verified_at") @db.Timestamp(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  sessions         Session[]
+
+  @@map("app_users")
+}
+
+//Session Manager
+model Session {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  refreshToken String    @map("refresh_token") @db.Text
+  active       Boolean   @default(true)
+  lastActive   DateTime  @default(now()) @map("last_active") @db.Timestamp(6)
+  expiresAt    DateTime  @map("expires_at") @db.Timestamp(6)
+  userAgent    String?   @map("user_agent") @db.Text
+  browser      String?   @db.VarChar(50)
+  os           String?   @db.VarChar(50)
+  device       String?   @db.VarChar(50)
+  deviceInfo   String?   @map("device_info") @db.Text 
+  ipAddress    String?   @map("ip_address") @db.VarChar(45)
+  country      String?   @db.VarChar(100)
+  city         String?   @db.VarChar(100)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
+  @@index([expiresAt])
+  @@map("session_manager")
+}
