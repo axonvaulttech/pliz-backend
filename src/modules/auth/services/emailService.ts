@@ -42,7 +42,7 @@ export class EmailService {
         return;
       }
 
-      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+      const verificationUrl = `${process.env.BASE_URL}/api/auth/verify-email?token=${token}`;
 
       const mailOptions = {
         from: `"PLIZ App" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
@@ -119,7 +119,7 @@ export class EmailService {
         return;
       }
 
-      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+      const resetUrl = `${process.env.BASE_URL}/api/auth/reset-password?token=${token}`;
 
       const mailOptions = {
         from: `"PLIZ App" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
