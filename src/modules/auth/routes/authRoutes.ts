@@ -14,6 +14,9 @@ import { changePassword } from '../controllers/Authentication/change_password';
 import { getMe } from '../controllers/Authentication/get_me';
 import { refreshToken } from '../controllers/Authentication/refresh_token';
 import { createAdminUser } from '../controllers/Authentication/create_admin_user';
+import { googleLogin, appleLogin } from '../controllers/Authentication/oauth.controller';
+import { googleLoginValidation, appleLoginValidation } from '../middleware/auth/oauth.validation';
+
 
 // Middleware
 import { authenticate } from '../middleware/auth/auth';
@@ -185,6 +188,15 @@ router.post(
   validateRequest,
   changePassword
 );
+
+// ============================================
+// OAUTH ROUTES (PUBLIC)
+// ============================================ 
+// POST /api/auth/google
+router.post('/google', googleLoginValidation, validateRequest, googleLogin);
+
+// POST /api/auth/apple
+router.post('/apple', appleLoginValidation, validateRequest, appleLogin);
 
 // ============================================
 // ADMIN ROUTES (PROTECTED)

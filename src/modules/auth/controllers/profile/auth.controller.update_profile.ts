@@ -3,9 +3,6 @@ import prisma from '../../../../config/database';
 import { IApiResponse } from '../../types/user.interface';
 import logger from '../../../../config/logger';
 
-/**
- * Helper to send response
- */
 const sendResponse = <T = any>(
   res: Response,
   statusCode: number,
@@ -25,7 +22,18 @@ export const updateProfile = async (
 ): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
-    const { firstName, middleName, lastName, phoneNumber, displayName, isAnonymous } = req.body;
+    const {
+      firstName,
+      middleName,
+      lastName,
+      phoneNumber,
+      dateOfBirth,
+      gender,
+      state,
+      city,
+      displayName,
+      isAnonymous,
+    } = req.body;
 
     logger.info('Update profile request', { userId });
 
@@ -35,11 +43,10 @@ export const updateProfile = async (
     });
 
     if (!existingProfile) {
-      const response: IApiResponse = {
+      sendResponse(res, 404, {
         success: false,
         message: 'Profile not found. Please complete your profile first.',
-      };
-      sendResponse(res, 404, response);
+      });
       return;
     }
 
@@ -53,11 +60,7 @@ export const updateProfile = async (
       });
 
       if (existingPhone) {
-        const response: IApiResponse = {
-          success: false,
-          message: 'Phone number already registered',
-        };
-        sendResponse(res, 409, response);
+        sendResponse(res, 409, { success: false, message: 'Phone number already registered' });
         return;
       }
     }
@@ -70,6 +73,10 @@ export const updateProfile = async (
         middleName: middleName !== undefined ? middleName : existingProfile.middleName,
         lastName: lastName || existingProfile.lastName,
         phoneNumber: phoneNumber || existingProfile.phoneNumber,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingProfile.dateOfBirth,
+        gender: gender !== undefined ? gender : existingProfile.gender,
+        state: state || existingProfile.state,
+        city: city !== undefined ? city : existingProfile.city,
         displayName: displayName !== undefined ? displayName : existingProfile.displayName,
         isAnonymous: isAnonymous !== undefined ? isAnonymous : existingProfile.isAnonymous,
       },
@@ -77,7 +84,7 @@ export const updateProfile = async (
 
     logger.info('Profile updated successfully', { userId });
 
-    const response: IApiResponse = {
+    sendResponse(res, 200, {
       success: true,
       message: 'Profile updated successfully',
       data: {
@@ -86,24 +93,20 @@ export const updateProfile = async (
           middleName: profile.middleName,
           lastName: profile.lastName,
           phoneNumber: profile.phoneNumber,
+          dateOfBirth: profile.dateOfBirth,
+          gender: profile.gender,
+          state: profile.state,
+          city: profile.city,
           displayName: profile.displayName,
           isAnonymous: profile.isAnonymous,
         },
       },
-    };
-
-    sendResponse(res, 200, response);
+    });
   } catch (error: any) {
     logger.error('Update profile error', {
       error: error.message,
       stack: error.stack,
     });
-
-    const response: IApiResponse = {
-      success: false,
-      message: 'Failed to update profile',
-    };
-
-    sendResponse(res, 500, response);
+    sendResponse(res, 500, { success: false, message: 'Failed to update profile' });
   }
 };

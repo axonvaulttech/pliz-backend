@@ -1,12 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../../../../config/database';
-// import { TrustScoreService } from '../../../../../src/services/trust_score.service';
 import { IApiResponse } from '../../types/user.interface';
 import logger from '../../../../config/logger';
 
-/**
- * Helper to send response
- */
 const sendResponse = <T = any>(
   res: Response,
   statusCode: number,
@@ -26,7 +22,19 @@ export const completeProfile = async (
 ): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
-    const { firstName, middleName, lastName, phoneNumber, agreeToTerms, displayName, isAnonymous } = req.body;
+    const {
+      firstName,
+      middleName,
+      lastName,
+      phoneNumber,
+      dateOfBirth,
+      gender,
+      state,
+      city,
+      agreeToTerms,
+      displayName,
+      isAnonymous,
+    } = req.body;
 
     logger.info('Complete profile request', { userId });
 
@@ -37,39 +45,32 @@ export const completeProfile = async (
     });
 
     if (!user) {
-      const response: IApiResponse = {
-        success: false,
-        message: 'User not found',
-      };
-      sendResponse(res, 404, response);
+      sendResponse(res, 404, { success: false, message: 'User not found' });
       return;
     }
 
     if (!user.isEmailVerified) {
-      const response: IApiResponse = {
+      sendResponse(res, 403, {
         success: false,
         message: 'Please verify your email before completing your profile',
-      };
-      sendResponse(res, 403, response);
+      });
       return;
     }
 
     if (user.profile) {
-      const response: IApiResponse = {
+      sendResponse(res, 400, {
         success: false,
         message: 'Profile already completed. Use update profile endpoint instead.',
-      };
-      sendResponse(res, 400, response);
+      });
       return;
     }
 
     // Validate required fields
-    if (!firstName || !lastName || !phoneNumber || agreeToTerms !== true) {
-      const response: IApiResponse = {
+    if (!firstName || !lastName || !phoneNumber || !dateOfBirth || !state || !city || agreeToTerms !== true) {
+      sendResponse(res, 400, {
         success: false,
-        message: 'First name, last name, phone number are required. You must agree to terms.',
-      };
-      sendResponse(res, 400, response);
+        message: 'First name, last name, phone number, date of birth, state and city are required. You must agree to terms.',
+      });
       return;
     }
 
@@ -79,11 +80,7 @@ export const completeProfile = async (
     });
 
     if (existingPhone) {
-      const response: IApiResponse = {
-        success: false,
-        message: 'Phone number already registered',
-      };
-      sendResponse(res, 409, response);
+      sendResponse(res, 409, { success: false, message: 'Phone number already registered' });
       return;
     }
 
@@ -95,6 +92,10 @@ export const completeProfile = async (
         middleName: middleName || null,
         lastName,
         phoneNumber,
+        dateOfBirth: new Date(dateOfBirth),
+        gender: gender || null,
+        state,
+        city: city || null,
         agreeToTerms,
         displayName: displayName || `${firstName} ${lastName}`,
         isAnonymous: isAnonymous || false,
@@ -109,7 +110,7 @@ export const completeProfile = async (
 
     logger.info('Profile completed successfully', { userId });
 
-    const response: IApiResponse = {
+    sendResponse(res, 201, {
       success: true,
       message: 'Profile completed successfully! You can now start using Pliz.',
       data: {
@@ -118,24 +119,20 @@ export const completeProfile = async (
           middleName: profile.middleName,
           lastName: profile.lastName,
           phoneNumber: profile.phoneNumber,
+          dateOfBirth: profile.dateOfBirth,
+          gender: profile.gender,
+          state: profile.state,
+          city: profile.city,
           displayName: profile.displayName,
           isAnonymous: profile.isAnonymous,
         },
       },
-    };
-
-    sendResponse(res, 201, response);
+    });
   } catch (error: any) {
     logger.error('Complete profile error', {
       error: error.message,
       stack: error.stack,
     });
-
-    const response: IApiResponse = {
-      success: false,
-      message: 'Failed to complete profile',
-    };
-
-    sendResponse(res, 500, response);
+    sendResponse(res, 500, { success: false, message: 'Failed to complete profile' });
   }
 };
