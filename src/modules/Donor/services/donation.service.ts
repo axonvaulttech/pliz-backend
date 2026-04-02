@@ -4,6 +4,7 @@ import { TrustScoreService } from '../../../services/trust_score.service';
 import { DonorRankService } from './donor_rank.service';
 import { NotificationService } from '../../notifications/services/notification.service';
 import { PaymentMethodService } from '../../Payment/services/payment_method.service';
+import { trustScoreQueue } from '../../../config/queue-manager';    // ← added
 import logger from '../../../config/logger';
 
 // Pre-defined gratitude messages
@@ -56,7 +57,7 @@ export class DonationService {
             select: {
               id: true,
               userId: true,
-              description: true,                            // ← title removed
+              description: true,
               category: { select: { name: true, icon: true } },
               status: true,
               amountRequested: true,
@@ -163,13 +164,54 @@ export class DonationService {
         await DonorRankService.updateAfterDonation(donorId, donationAmount);
       }
 
+      // ============================================
       // STEPS 10 & 11: Invalidate trust score caches
-      await TrustScoreService.invalidateTrustScoreCache(recipientId);
-      if (donorId) await TrustScoreService.invalidateTrustScoreCache(donorId);
+      // Try queue first — fall back to direct if queue unavailable
+      // ============================================
+      try {
+        await trustScoreQueue.add(
+          'invalidate',
+          { userId: recipientId, action: 'invalidate' },
+          { jobId: `trust-invalidate-${recipientId}-${Date.now()}` }
+        );
 
-      // STEP 12: Force recalculate trust scores
-      await TrustScoreService.calculateTrustScore(recipientId);
-      if (donorId) await TrustScoreService.calculateTrustScore(donorId);
+        if (donorId) {
+          await trustScoreQueue.add(
+            'invalidate',
+            { userId: donorId, action: 'invalidate' },
+            { jobId: `trust-invalidate-${donorId}-${Date.now()}` }
+          );
+        }
+
+        // ============================================
+        // STEP 12: Recalculate trust scores via queue
+        // ============================================
+        await trustScoreQueue.add(
+          'recalculate',
+          { userId: recipientId, action: 'recalculate' },
+          { jobId: `trust-recalc-${recipientId}-${Date.now()}` }
+        );
+
+        if (donorId) {
+          await trustScoreQueue.add(
+            'recalculate',
+            { userId: donorId, action: 'recalculate' },
+            { jobId: `trust-recalc-${donorId}-${Date.now()}` }
+          );
+        }
+
+        logger.info('Trust score jobs queued', { recipientId, donorId });
+      } catch (queueError: any) {
+        // Queue unavailable — fall back to direct processing
+        logger.warn('Trust score queue unavailable, processing directly', {
+          error: queueError.message,
+        });
+
+        await TrustScoreService.invalidateTrustScoreCache(recipientId);
+        if (donorId) await TrustScoreService.invalidateTrustScoreCache(donorId);
+        await TrustScoreService.calculateTrustScore(recipientId);
+        if (donorId) await TrustScoreService.calculateTrustScore(donorId);
+      }
 
       // STEP 13: Invalidate donor rank cache
       if (donorId) await DonorRankService.invalidateCache(donorId);
@@ -194,7 +236,7 @@ export class DonationService {
       await NotificationService.donationReceived({
         userId: recipientId,
         begId: donation.begId,
-        begTitle,                                          // ← uses helper
+        begTitle,
         amount: donationAmount,
         isAnonymous: donation.isAnonymous,
         donorName,
@@ -205,7 +247,7 @@ export class DonationService {
         await NotificationService.begFunded({
           userId: recipientId,
           begId: donation.begId,
-          begTitle,                                        // ← uses helper
+          begTitle,
           amountReceived: result.amountRequested,
         });
       }
@@ -260,7 +302,7 @@ export class DonationService {
       select: {
         id: true,
         userId: true,
-        description: true,                                // ← title removed
+        description: true,
         category: { select: { name: true, icon: true } },
         status: true,
         amountRequested: true,
@@ -296,7 +338,7 @@ export class DonationService {
         beg: {
           select: {
             id: true,
-            description: true,                            // ← title removed
+            description: true,
             amountRequested: true,
             amountRaised: true,
             status: true,
@@ -331,7 +373,7 @@ export class DonationService {
       created_at: donation.createdAt,
       beg: {
         id: donation.beg.id,
-        title: buildBegTitle(donation.beg.category, donation.beg.description), // ← uses helper
+        title: buildBegTitle(donation.beg.category, donation.beg.description),
         amount_requested: parseFloat(donation.beg.amountRequested.toString()),
         amount_raised: parseFloat(donation.beg.amountRaised.toString()),
         status: donation.beg.status,
@@ -430,7 +472,7 @@ export class DonationService {
           beg: {
             select: {
               id: true,
-              description: true,                          // ← title removed
+              description: true,
               status: true,
               amountRequested: true,
               amountRaised: true,
@@ -475,7 +517,7 @@ export class DonationService {
         created_at: d.createdAt,
         request: {
           id: d.beg.id,
-          title: buildBegTitle(d.beg.category, d.beg.description),  // ← uses helper
+          title: buildBegTitle(d.beg.category, d.beg.description),
           status: d.beg.status,
           category: d.beg.category,
           amount_requested: parseFloat(d.beg.amountRequested.toString()),
@@ -566,3 +608,17 @@ export class DonationService {
     }
   }
 }
+// ```
+
+// **Only one thing changed** — Steps 10, 11 and 12 now use the queue:
+// ```
+// ❌ Before (direct):
+// await TrustScoreService.invalidateTrustScoreCache(recipientId)
+// await TrustScoreService.invalidateTrustScoreCache(donorId)
+// await TrustScoreService.calculateTrustScore(recipientId)
+// await TrustScoreService.calculateTrustScore(donorId)
+
+// ✅ After (queue with direct fallback):
+// trustScoreQueue.add('invalidate', ...) → trust-score.processor.ts handles it
+// trustScoreQueue.add('recalculate', ...) → trust-score.processor.ts handles it
+// ↓ if queue down → falls back to direct TrustScoreService calls
