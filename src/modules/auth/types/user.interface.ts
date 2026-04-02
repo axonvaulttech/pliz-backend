@@ -187,21 +187,35 @@ export interface IDeviceInfo {
 
 /**
  * Complete Profile Request
- * state and dateOfBirth are required — matches schema
+ * Ordered to match the UX flow:
+ * Step 1: Personal Identity
+ * Step 2: Contact
+ * Step 3: Location
+ * Step 4: Privacy
+ * Step 5: Legal
  */
 export interface ICompleteProfileRequest {
+  // Step 1: Personal Identity
   firstName: string;
   middleName?: string;
   lastName: string;
-  phoneNumber: string;
-  dateOfBirth: Date;       // ← required
-  gender?: string;
-  state: string;           // ← required
-  city?: string;
-  address?: string;        // ← kept as optional
   displayName?: string;
+  dateOfBirth: Date;                  // ← required, must be 18+
+  gender: 'male' | 'female';         // ← required, male or female only
+
+  // Step 2: Contact
+  phoneNumber: string;
+
+  // Step 3: Location
+  state: string;                      // ← required, must be valid Nigerian state
+  city: string;                       // ← required
+  address?: string;                   // ← optional
+
+  // Step 4: Privacy
   isAnonymous?: boolean;
-  agreeToTerms: boolean;
+
+  // Step 5: Legal
+  agreeToTerms: boolean;              // ← required, must be true
 }
 
 /**
@@ -209,23 +223,36 @@ export interface ICompleteProfileRequest {
  * Everything optional — user can update individual fields
  */
 export interface IUpdateProfileRequest {
+  // Personal Identity
   firstName?: string;
   middleName?: string;
   lastName?: string;
-  phoneNumber?: string;
+  displayName?: string;
   dateOfBirth?: Date;
-  gender?: string;
+  gender?: 'male' | 'female';        // ← male or female only
+
+  // Contact
+  phoneNumber?: string;
+
+  // Location
   state?: string;
   city?: string;
-  address?: string;        // ← kept
-  displayName?: string;
+  address?: string;
+
+  // Privacy
   isAnonymous?: boolean;
 }
+
+/**
+ * =====================================================
+ * OAUTH TYPES
+ * =====================================================
+ */
 
 export interface IOAuthRequest {
   provider: 'google' | 'apple';
   idToken: string;
-  firstName?: string;   // Apple only sends this on first login
+  firstName?: string;                 // Apple only sends this on first login
   lastName?: string;
 }
 

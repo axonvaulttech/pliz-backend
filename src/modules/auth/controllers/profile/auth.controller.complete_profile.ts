@@ -13,7 +13,7 @@ const sendResponse = <T = any>(
 
 /**
  * @route   POST /api/auth/profile/complete
- * @desc    Complete user profile (Step 3: After email verification)
+ * @desc    Complete user profile (After email verification)
  * @access  Private
  */
 export const completeProfile = async (
@@ -23,17 +23,23 @@ export const completeProfile = async (
   try {
     const userId = (req as any).user?.userId;
     const {
+      // Step 1: Personal Identity
       firstName,
       middleName,
       lastName,
-      phoneNumber,
+      displayName,
       dateOfBirth,
       gender,
+      // Step 2: Contact
+      phoneNumber,
+      // Step 3: Location
       state,
       city,
-      agreeToTerms,
-      displayName,
+      address,            // ← added (optional)
+      // Step 4: Privacy
       isAnonymous,
+      // Step 5: Legal
+      agreeToTerms,
     } = req.body;
 
     logger.info('Complete profile request', { userId });
@@ -66,10 +72,28 @@ export const completeProfile = async (
     }
 
     // Validate required fields
-    if (!firstName || !lastName || !phoneNumber || !dateOfBirth || !state || !city || agreeToTerms !== true) {
+    if (
+      !firstName ||
+      !lastName ||
+      !phoneNumber ||
+      !dateOfBirth ||
+      !gender ||                      // ← added
+      !state ||
+      !city ||
+      agreeToTerms !== true
+    ) {
       sendResponse(res, 400, {
         success: false,
-        message: 'First name, last name, phone number, date of birth, state and city are required. You must agree to terms.',
+        message: 'First name, last name, phone number, date of birth, gender, state and city are required. You must agree to terms.',
+      });
+      return;
+    }
+
+    // Validate gender value
+    if (!['male', 'female'].includes(gender)) {
+      sendResponse(res, 400, {
+        success: false,
+        message: 'Gender must be either male or female',
       });
       return;
     }
@@ -88,17 +112,23 @@ export const completeProfile = async (
     const profile = await prisma.userProfile.create({
       data: {
         userId,
+        // Step 1: Personal Identity
         firstName,
         middleName: middleName || null,
         lastName,
-        phoneNumber,
-        dateOfBirth: new Date(dateOfBirth),
-        gender: gender || null,
-        state,
-        city: city || null,
-        agreeToTerms,
         displayName: displayName || `${firstName} ${lastName}`,
+        dateOfBirth: new Date(dateOfBirth),
+        gender,
+        // Step 2: Contact
+        phoneNumber,
+        // Step 3: Location
+        state,
+        city,
+        address: address || null,     // ← optional
+        // Step 4: Privacy
         isAnonymous: isAnonymous || false,
+        // Step 5: Legal
+        agreeToTerms,
       },
     });
 
@@ -112,18 +142,19 @@ export const completeProfile = async (
 
     sendResponse(res, 201, {
       success: true,
-      message: 'Profile completed successfully! You can now start using Pliz.',
+      message: 'Profile completed successfully! You can now start using Plz.',  // ← fixed Pliz → Plz
       data: {
         profile: {
           firstName: profile.firstName,
           middleName: profile.middleName,
           lastName: profile.lastName,
-          phoneNumber: profile.phoneNumber,
+          displayName: profile.displayName,
           dateOfBirth: profile.dateOfBirth,
           gender: profile.gender,
+          phoneNumber: profile.phoneNumber,
           state: profile.state,
           city: profile.city,
-          displayName: profile.displayName,
+          address: profile.address,   // ← added
           isAnonymous: profile.isAnonymous,
         },
       },

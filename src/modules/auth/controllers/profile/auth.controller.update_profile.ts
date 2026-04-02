@@ -23,15 +23,20 @@ export const updateProfile = async (
   try {
     const userId = (req as any).user?.userId;
     const {
+      // Step 1: Personal Identity
       firstName,
       middleName,
       lastName,
-      phoneNumber,
+      displayName,
       dateOfBirth,
       gender,
+      // Step 2: Contact
+      phoneNumber,
+      // Step 3: Location
       state,
       city,
-      displayName,
+      address,            // ← added
+      // Step 4: Privacy
       isAnonymous,
     } = req.body;
 
@@ -46,6 +51,15 @@ export const updateProfile = async (
       sendResponse(res, 404, {
         success: false,
         message: 'Profile not found. Please complete your profile first.',
+      });
+      return;
+    }
+
+    // Validate gender if provided
+    if (gender !== undefined && !['male', 'female'].includes(gender)) {
+      sendResponse(res, 400, {
+        success: false,
+        message: 'Gender must be either male or female',
       });
       return;
     }
@@ -69,15 +83,20 @@ export const updateProfile = async (
     const profile = await prisma.userProfile.update({
       where: { userId },
       data: {
-        firstName: firstName || existingProfile.firstName,
-        middleName: middleName !== undefined ? middleName : existingProfile.middleName,
-        lastName: lastName || existingProfile.lastName,
-        phoneNumber: phoneNumber || existingProfile.phoneNumber,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingProfile.dateOfBirth,
-        gender: gender !== undefined ? gender : existingProfile.gender,
-        state: state || existingProfile.state,
-        city: city !== undefined ? city : existingProfile.city,
+        // Step 1: Personal Identity
+        firstName:   firstName   !== undefined ? firstName   : existingProfile.firstName,
+        middleName:  middleName  !== undefined ? middleName  : existingProfile.middleName,
+        lastName:    lastName    !== undefined ? lastName    : existingProfile.lastName,
         displayName: displayName !== undefined ? displayName : existingProfile.displayName,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingProfile.dateOfBirth,
+        gender:      gender      !== undefined ? gender      : existingProfile.gender,
+        // Step 2: Contact
+        phoneNumber: phoneNumber !== undefined ? phoneNumber : existingProfile.phoneNumber,
+        // Step 3: Location
+        state:   state   !== undefined ? state   : existingProfile.state,
+        city:    city    !== undefined ? city    : existingProfile.city,
+        address: address !== undefined ? address : existingProfile.address,  // ← added
+        // Step 4: Privacy
         isAnonymous: isAnonymous !== undefined ? isAnonymous : existingProfile.isAnonymous,
       },
     });
@@ -89,16 +108,23 @@ export const updateProfile = async (
       message: 'Profile updated successfully',
       data: {
         profile: {
+          // Step 1: Personal Identity
           firstName: profile.firstName,
           middleName: profile.middleName,
           lastName: profile.lastName,
-          phoneNumber: profile.phoneNumber,
+          displayName: profile.displayName,
           dateOfBirth: profile.dateOfBirth,
           gender: profile.gender,
+          // Step 2: Contact
+          phoneNumber: profile.phoneNumber,
+          // Step 3: Location
           state: profile.state,
           city: profile.city,
-          displayName: profile.displayName,
+          address: profile.address,    // ← added
+          // Step 4: Privacy
           isAnonymous: profile.isAnonymous,
+          // System
+          updatedAt: profile.updatedAt,
         },
       },
     });
