@@ -31,18 +31,22 @@ export const createApp = (): Express => {
   // Security middleware
   app.use(helmet());
 
-  // CORS — comma-separated ALLOWED_ORIGINS for staging + production web origins (credentialed cookies)
+  // CORS — comma-separated ALLOWED_ORIGINS for staging + production web origins (credentialed cookies).
+  // When empty, reflect the request origin (`true`) so browsers accept credentialed responses
+  // (Access-Control-Allow-Origin must be a specific origin, not `*`). `undefined` falls back to
+  // permissive defaults and often breaks httpOnly refresh cookies on cross-origin Expo web + API.
   const corsOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
     : [];
+  const corsOriginOption =
+    corsOrigins.length === 0
+      ? true
+      : corsOrigins.length === 1
+        ? corsOrigins[0]
+        : corsOrigins;
   app.use(
     cors({
-      origin:
-        corsOrigins.length === 0
-          ? undefined
-          : corsOrigins.length === 1
-            ? corsOrigins[0]
-            : corsOrigins,
+      origin: corsOriginOption,
       credentials: true,
     })
   );
