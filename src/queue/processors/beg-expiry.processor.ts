@@ -1,15 +1,12 @@
 import { Worker, Job } from 'bullmq';
 import { QUEUES } from '../../config/queue';
+import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared
 import { BegService } from '../../modules/Beg/services/beg.service';
 import { BegNotificationService } from '../../modules/Beg/beg_extend_notification/beg-notification.service';
 import { IBegExpiryJob } from '../job.types';
 import logger from '../../config/logger';
 
-const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-};
+const connection = getBullMQConnection();  // use shared connection
 
 export const begExpiryWorker = new Worker<IBegExpiryJob>(
   QUEUES.BEG_EXPIRY,
@@ -27,6 +24,7 @@ export const begExpiryWorker = new Worker<IBegExpiryJob>(
   {
     connection,
     concurrency: 1,   // Only 1 expiry job at a time
+    stalledInterval: 300000,    // ← OPTIMIZATION: check stalled every 5min not 5sec
   }
 );
 
@@ -35,6 +33,14 @@ begExpiryWorker.on('failed', (job, error) => {
     jobId: job?.id,
     error: error.message,
   });
+});
+
+begExpiryWorker.on('error', (error) => {
+  logger.error('Beg expiry worker error', { error: error.message });
+});
+
+begExpiryWorker.on('stalled', (jobId) => {
+  logger.warn('Beg expiry job stalled', { jobId });
 });
 
 logger.info('Beg expiry worker started');

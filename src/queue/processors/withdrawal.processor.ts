@@ -1,14 +1,11 @@
 import { Worker, Job } from 'bullmq';
 import { QUEUES } from '../../config/queue';
+import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared connection
 import { WithdrawalService } from '../../modules/Withdrawal/services/withdrawal.service';
 import { IWithdrawalJob } from '../job.types';
 import logger from '../../config/logger';
 
-const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-};
+const connection = getBullMQConnection();  // use shared connection
 
 export const withdrawalWorker = new Worker<IWithdrawalJob>(
   QUEUES.WITHDRAWALS,
@@ -32,6 +29,7 @@ export const withdrawalWorker = new Worker<IWithdrawalJob>(
   {
     connection,
     concurrency: 2,   // Only 2 withdrawals at a time — Paystack rate limits
+    stalledInterval: 300000,    // ← OPTIMIZATION: check stalled every 5min not 5sec
   }
 );
 
@@ -50,6 +48,12 @@ withdrawalWorker.on('failed', (job, error) => {
 
 withdrawalWorker.on('error', (error) => {
   logger.error('Withdrawal worker error', { error: error.message });
+});
+
+withdrawalWorker.on('stalled', (jobId) => {
+  logger.error('Withdrawal job stalled — user may not have received their money', {
+    jobId,
+  });
 });
 
 logger.info('Withdrawal worker started');

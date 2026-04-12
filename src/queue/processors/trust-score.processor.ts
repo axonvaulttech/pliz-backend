@@ -1,14 +1,11 @@
 import { Worker, Job } from 'bullmq';
 import { QUEUES } from '../../config/queue';
+import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared
 import { TrustScoreService } from '../../services/trust_score.service';
 import { ITrustScoreJob } from '../job.types';
 import logger from '../../config/logger';
 
-const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-};
+const connection = getBullMQConnection();  // use shared connection
 
 export const trustScoreWorker = new Worker<ITrustScoreJob>(
   QUEUES.TRUST_SCORE,
@@ -30,6 +27,7 @@ export const trustScoreWorker = new Worker<ITrustScoreJob>(
   {
     connection,
     concurrency: 10,
+    stalledInterval: 300000,    // OPTIMIZATION: check stalled every 5min not 5sec
   }
 );
 
@@ -39,6 +37,14 @@ trustScoreWorker.on('failed', (job, error) => {
     userId: job?.data?.userId,
     error: error.message,
   });
+});
+
+trustScoreWorker.on('error', (error) => {
+  logger.error('Trust score worker error', { error: error.message });
+});
+
+trustScoreWorker.on('stalled', (jobId) => {
+  logger.warn('Trust score job stalled', { jobId });
 });
 
 logger.info('Trust score worker started');

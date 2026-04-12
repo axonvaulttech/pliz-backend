@@ -1,14 +1,12 @@
 import { Worker, Job } from 'bullmq';
 import { QUEUES } from '../../config/queue';
+import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared connection
 import { DonationService } from '../../modules/Donor/services/donation.service';
 import { IDonationJob } from '../job.types';
 import logger from '../../config/logger';
 
-const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-};
+const connection = getBullMQConnection();  // ← use shared connection
+
 
 export const donationWorker = new Worker<IDonationJob>(
   QUEUES.DONATIONS,
@@ -29,6 +27,7 @@ export const donationWorker = new Worker<IDonationJob>(
   {
     connection,
     concurrency: 5,   // Process 5 donations at the same time
+    stalledInterval: 300000,    // ← OPTIMIZATION: check stalled every 5min not 5sec
   }
 );
 
@@ -50,6 +49,12 @@ donationWorker.on('failed', (job, error) => {
 
 donationWorker.on('error', (error) => {
   logger.error('Donation worker error', { error: error.message });
+});
+
+donationWorker.on('stalled', (jobId) => {
+  logger.error('Donation job stalled — user may have paid but donation not recorded', {
+    jobId,
+  });
 });
 
 logger.info('Donation worker started');
