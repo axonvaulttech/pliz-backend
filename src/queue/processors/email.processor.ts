@@ -1,4 +1,5 @@
 import { Worker, Job } from 'bullmq';
+import { bullMQConnection } from '../../config/bullmq-connection';
 import { QUEUES } from '../../config/queue';
 import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared
 import { WithdrawalEmailService } from '../../modules/Withdrawal/services/withdrawal_email.service';

@@ -1,4 +1,5 @@
 import { Worker, Job } from 'bullmq';
+import { bullMQConnection } from '../../config/bullmq-connection';
 import { QUEUES } from '../../config/queue';
 import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared
 import { BegService } from '../../modules/Beg/services/beg.service';
@@ -27,6 +28,10 @@ export const begExpiryWorker = new Worker<IBegExpiryJob>(
     stalledInterval: 300000,    // ← OPTIMIZATION: check stalled every 5min not 5sec
   }
 );
+
+begExpiryWorker.on('completed', (job) => {
+  logger.info('Beg expiry job completed', { jobId: job.id });
+});
 
 begExpiryWorker.on('failed', (job, error) => {
   logger.error('Beg expiry job failed', {

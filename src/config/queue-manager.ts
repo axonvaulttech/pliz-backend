@@ -1,4 +1,5 @@
-import { Queue, Worker, QueueEvents } from 'bullmq';
+import { Queue } from 'bullmq';
+import { bullMQConnection } from './bullmq-connection';
 import { QUEUES, QUEUE_CONFIG } from './queue';
 import { getBullMQConnection } from './bullmq-connection';  // ← shared connection
 import logger from './logger';
@@ -25,7 +26,7 @@ export const notificationQueue = new Queue(QUEUES.NOTIFICATIONS, {
   connection,
   defaultJobOptions: {
     ...QUEUE_CONFIG.defaultJobOptions,
-    attempts: 5,                    // Notifications get more retries
+    attempts: 5,
   },
   streams: { events: { maxLen: 50 } },    // OPTIMIZATION: limit event stream length to save Redis memory
 });

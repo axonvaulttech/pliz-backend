@@ -1,4 +1,5 @@
 import { Worker, Job } from 'bullmq';
+import { bullMQConnection } from '../../config/bullmq-connection';
 import { QUEUES } from '../../config/queue';
 import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared connection
 import { WithdrawalService } from '../../modules/Withdrawal/services/withdrawal.service';
@@ -34,7 +35,10 @@ export const withdrawalWorker = new Worker<IWithdrawalJob>(
 );
 
 withdrawalWorker.on('completed', (job) => {
-  logger.info('Withdrawal job completed', { jobId: job.id });
+  logger.info('Withdrawal job completed', {
+    jobId: job.id,
+    withdrawalId: job.data.withdrawalId,
+  });
 });
 
 withdrawalWorker.on('failed', (job, error) => {

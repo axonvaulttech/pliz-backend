@@ -1,4 +1,5 @@
 import { Worker, Job } from 'bullmq';
+import { bullMQConnection } from '../../config/bullmq-connection';
 import { QUEUES } from '../../config/queue';
 import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared connection
 import { DonationService } from '../../modules/Donor/services/donation.service';
@@ -11,7 +12,7 @@ const connection = getBullMQConnection();  // ← use shared connection
 export const donationWorker = new Worker<IDonationJob>(
   QUEUES.DONATIONS,
   async (job: Job<IDonationJob>) => {
-    logger.info(`Processing donation job`, {
+    logger.info('Processing donation job', {
       jobId: job.id,
       reference: job.data.paymentReference,
       attempt: job.attemptsMade + 1,
@@ -19,7 +20,7 @@ export const donationWorker = new Worker<IDonationJob>(
 
     await DonationService.processDonation(job.data);
 
-    logger.info(`Donation job completed`, {
+    logger.info('Donation job completed', {
       jobId: job.id,
       reference: job.data.paymentReference,
     });
