@@ -1,5 +1,4 @@
 import { Worker, Job } from 'bullmq';
-import { bullMQConnection } from '../../config/bullmq-connection';
 import { QUEUES } from '../../config/queue';
 import { getBullMQConnection } from '../../config/bullmq-connection';  // ← shared
 import { TrustScoreService } from '../../services/trust_score.service';
