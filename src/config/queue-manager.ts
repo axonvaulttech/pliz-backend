@@ -1,5 +1,4 @@
 import { Queue } from 'bullmq';
-import { bullMQConnection } from './bullmq-connection';
 import { QUEUES, QUEUE_CONFIG } from './queue';
 import { getBullMQConnection } from './bullmq-connection';  // ← shared connection
 import logger from './logger';
