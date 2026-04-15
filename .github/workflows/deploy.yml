@@ -65,6 +65,8 @@ jobs:
             --set-secrets=REDIS_URL=REDIS_URL:latest
             --set-secrets=REDIS_HOST=REDIS_HOST:latest
             --set-secrets=REDIS_PORT=REDIS_PORT:latest
+            --set-secrets=REDIS_PASSWORD=REDIS_PASSWORD:latest
+            --set-secrets=REDIS_TLS=REDIS_TLS:latest
             --set-secrets=BASE_URL=BASE_URL:latest
             --set-secrets=FRONTEND_URL=FRONTEND_URL:latest
             --set-secrets=ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest
